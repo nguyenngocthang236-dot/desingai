@@ -1,0 +1,58 @@
+@model CafeManager.Models.MenuItem
+@{
+    ViewData["Title"] = "Thêm món mới";
+    var categories = ViewBag.Categories as List<CafeManager.Models.Category> ?? new();
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+        <div class="card card-custom p-4">
+            <h4 class="fw-bold mb-3 border-bottom pb-2">
+                <i class="bi bi-plus-circle text-warning me-2"></i>Thêm món mới vào thực đơn
+            </h4>
+
+            <form method="post" asp-action="Create">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Tên món <span class="text-danger">*</span></label>
+                    <input type="text" asp-for="Name" class="form-control" placeholder="Ví dụ: Cà phê cốt dừa" required />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Danh mục <span class="text-danger">*</span></label>
+                    <select asp-for="CategoryId" class="form-select" required>
+                        @foreach (var c in categories)
+                        {
+                            <option value="@c.Id">@c.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Giá bán (VNĐ) <span class="text-danger">*</span></label>
+                    <input type="number" asp-for="Price" class="form-control" min="0" step="1000" placeholder="Ví dụ: 35000" required />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Mô tả món</label>
+                    <textarea asp-for="Description" class="form-control" rows="3" placeholder="Mô tả hương vị hoặc thành phần..."></textarea>
+                </div>
+
+                <div class="form-check mb-4">
+                    <input class="form-check-input" type="checkbox" asp-for="IsAvailable" checked />
+                    <label class="form-check-label" asp-for="IsAvailable">
+                        Đang mở bán
+                    </label>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-cafe flex-grow-1">
+                        <i class="bi bi-check-lg me-1"></i> Lưu món
+                    </button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">
+                        Hủy
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

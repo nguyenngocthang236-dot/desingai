@@ -1,0 +1,164 @@
+@model CafeManager.Models.Order
+@{
+    ViewData["Title"] = $"Gọi món - {ViewBag.Table?.Name ?? "Mang đi"}";
+    var menuList = ViewBag.Menu as List<CafeManager.Models.MenuItem> ?? new();
+    var table = ViewBag.Table as CafeManager.Models.CafeTable;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a asp-action="Tables" class="btn btn-sm btn-outline-secondary mb-2">
+            <i class="bi bi-arrow-left"></i> Quay lại sơ đồ bàn
+        </a>
+        <h3 class="fw-bold mb-0">
+            <i class="bi bi-receipt text-warning me-2"></i>Đơn hàng: <span class="text-primary">@(table?.Name ?? "Đơn mang đi")</span>
+            <span class="badge bg-secondary fs-6 align-middle ms-2">Mã đơn #@Model.Id</span>
+        </h3>
+    </div>
+    <div>
+        <span class="text-muted small">Thời gian tạo: @Model.CreatedAt.ToString("HH:mm dd/MM/yyyy")</span>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Menu bên trái để chọn món -->
+    <div class="col-lg-7">
+        <div class="card card-custom p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-cup-straw text-primary me-2"></i>Danh sách món</h5>
+                <input type="text" id="menuSearch" class="form-control form-control-sm w-50" placeholder="Tìm kiếm món...">
+            </div>
+
+            <div class="row g-3" style="max-height: 550px; overflow-y: auto;">
+                @foreach (var item in menuList)
+                {
+                    <div class="col-md-6 menuItemCard" data-name="@item.Name.ToLower()">
+                        <div class="card border rounded-3 p-3 h-100 d-flex flex-column justify-content-between bg-light">
+                            <div>
+                                <h6 class="fw-bold mb-1 text-dark">@item.Name</h6>
+                                <p class="small text-muted mb-2 text-truncate">@item.Description</p>
+                                <span class="fw-bold text-danger">@item.Price.ToString("N0") đ</span>
+                            </div>
+                            <div class="mt-3">
+                                <form method="post" asp-action="AddItem" class="d-flex gap-2">
+                                    <input type="hidden" name="orderId" value="@Model.Id" />
+                                    <input type="hidden" name="menuItemId" value="@item.Id" />
+                                    <input type="number" name="quantity" value="1" min="1" max="99" class="form-control form-control-sm text-center" style="width: 65px;" />
+                                    <button type="submit" class="btn btn-sm btn-cafe flex-grow-1">
+                                        <i class="bi bi-plus-lg me-1"></i> Thêm
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Chi tiết đơn hàng bên phải -->
+    <div class="col-lg-5">
+        <div class="card card-custom p-4 d-flex flex-column h-100">
+            <h5 class="fw-bold mb-3 border-bottom pb-2">
+                <i class="bi bi-cart3 text-warning me-2"></i>Món đã gọi (@Model.Items.Sum(i => i.Quantity))
+            </h5>
+
+            <div class="flex-grow-1" style="max-height: 350px; overflow-y: auto;">
+                @if (!Model.Items.Any())
+                {
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                        <span>Chưa có món nào trong đơn. Vui lòng chọn món từ menu bên cạnh!</span>
+                    </div>
+                }
+                else
+                {
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr class="text-muted small">
+                                <th>Món</th>
+                                <th class="text-center">SL</th>
+                                <th class="text-end">Đơn giá</th>
+                                <th class="text-end">Thành tiền</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var line in Model.Items)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@(line.MenuItem?.Name ?? "Món")</td>
+                                    <td class="text-center">@line.Quantity</td>
+                                    <td class="text-end text-muted small">@line.UnitPrice.ToString("N0")</td>
+                                    <td class="text-end fw-bold">@((line.Quantity * line.UnitPrice).ToString("N0"))</td>
+                                    <td class="text-end">
+                                        <form method="post" asp-action="RemoveItem">
+                                            <input type="hidden" name="itemId" value="@line.Id" />
+                                            <button type="submit" class="btn btn-link text-danger p-0" title="Xóa">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+
+            <!-- Tổng kết tiền & Thanh toán -->
+            <div class="border-top pt-3 mt-3">
+                @{
+                    var rawSubtotal = Model.Items.Sum(i => i.Quantity * i.UnitPrice);
+                }
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Tạm tính:</span>
+                    <span class="fw-bold fs-6">@rawSubtotal.ToString("N0") đ</span>
+                </div>
+
+                @if (User.IsInRole("Manager") || User.IsInRole("Cashier"))
+                {
+                    <form method="post" asp-action="Pay" class="mt-3">
+                        <input type="hidden" name="orderId" value="@Model.Id" />
+
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold text-muted mb-1">Giảm giá (VNĐ)</label>
+                            <input type="number" name="discount" id="discountInput" value="@Model.Discount" min="0" step="1000" class="form-control form-control-sm" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-muted mb-1">Phương thức thanh toán</label>
+                            <select name="method" class="form-select form-select-sm" required>
+                                <option value="Cash">Tiền mặt (Cash)</option>
+                                <option value="Transfer">Chuyển khoản / QR (Transfer)</option>
+                                <option value="Card">Thẻ (Card)</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 py-2 fw-bold" @(Model.Items.Any() ? "" : "disabled")>
+                            <i class="bi bi-check-circle-fill me-1"></i> Thanh toán & In hóa đơn
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    <div class="alert alert-info py-2 small mb-0 mt-3 text-center">
+                        <i class="bi bi-info-circle me-1"></i> Chỉ Quản lý hoặc Thu ngân mới có thể thực hiện thanh toán.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    document.getElementById('menuSearch')?.addEventListener('input', function(e) {
+        const query = e.target.value.toLowerCase().trim();
+        document.querySelectorAll('.menuItemCard').forEach(el => {
+            const name = el.getAttribute('data-name');
+            el.style.display = name.includes(query) ? '' : 'none';
+        });
+    });
+</script>
+}
